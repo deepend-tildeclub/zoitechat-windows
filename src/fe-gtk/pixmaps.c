@@ -118,10 +118,42 @@ pixmap_load_from_file_real (char *file)
 {
 	GdkPixbuf *img;
 	cairo_surface_t *surface;
+	int width;
+	int height;
+	const int max_dimension = 4096;
 
 	img = gdk_pixbuf_new_from_file (file, 0);
 	if (!img)
 		return NULL;
+
+	width = gdk_pixbuf_get_width (img);
+	height = gdk_pixbuf_get_height (img);
+	if (width > max_dimension || height > max_dimension)
+	{
+		GdkPixbuf *scaled;
+		double scale;
+		int target_width;
+		int target_height;
+
+		if (width >= height)
+			scale = (double)max_dimension / (double)width;
+		else
+			scale = (double)max_dimension / (double)height;
+
+		target_width = (int)(width * scale);
+		target_height = (int)(height * scale);
+		if (target_width < 1)
+			target_width = 1;
+		if (target_height < 1)
+			target_height = 1;
+
+		scaled = gdk_pixbuf_scale_simple (img, target_width, target_height, GDK_INTERP_BILINEAR);
+		if (scaled)
+		{
+			g_object_unref (img);
+			img = scaled;
+		}
+	}
 
 	surface = pixbuf_to_cairo_surface (img);
 	g_object_unref (img);

@@ -161,10 +161,6 @@ static const setting appearance_settings[] =
         {ST_TOGGLE, N_("Colored nick names"), P_OFFINTNL(hex_text_color_nicks), N_("Give each person on IRC a different color"),0,0},
         {ST_TOGGLR, N_("Indent nick names"), P_OFFINTNL(hex_text_indent), N_("Make nick names right-justified"),0,0},
         {ST_TOGGLE, N_ ("Show marker line"), P_OFFINTNL (hex_text_show_marker), N_ ("Insert a red line after the last read text."), 0, 0},
-        {ST_EFILE, N_ ("Background image:"), P_OFFSETNL (hex_text_background), 0, 0, sizeof prefs.hex_text_background},
-
-        {ST_HEADER, N_("Transparency Settings"), 0,0,0},
-        {ST_HSCALE, N_("Window opacity:"), P_OFFINTNL(hex_gui_transparency),0,0,0},
 
         {ST_HEADER,     N_("Timestamps"),0,0,0},
         {ST_TOGGLE, N_("Enable timestamps"), P_OFFINTNL(hex_stamp_text),0,0,1},
@@ -179,6 +175,15 @@ static const setting appearance_settings[] =
         {ST_TOGGLE, N_("Show channel modes"), P_OFFINTNL(hex_gui_win_modes),0,0,0},
         {ST_TOGGLR, N_("Show number of users"), P_OFFINTNL(hex_gui_win_ucount),0,0,0},
         {ST_TOGGLE, N_("Show nickname"), P_OFFINTNL(hex_gui_win_nick),0,0,0},
+
+        {ST_END, 0, 0, 0, 0, 0}
+};
+
+static const setting appearance_advanced_settings[] =
+{
+        {ST_HEADER,     N_("Advanced"),0,0,0},
+        {ST_EFILE, N_ ("Background image:"), P_OFFSETNL (hex_text_background), 0, 0, sizeof prefs.hex_text_background},
+        {ST_HSCALE, N_("Window opacity:"), P_OFFINTNL(hex_gui_transparency),0,0,0},
 
         {ST_END, 0, 0, 0, 0, 0}
 };
@@ -1142,21 +1147,63 @@ setup_filereq_cb (GtkWidget *entry, char *file)
 }
 
 static void
+setup_browsefile_response_cb (GtkNativeDialog *dialog, gint response, gpointer user_data)
+{
+        GtkWidget *entry = user_data;
+
+        if (response == GTK_RESPONSE_ACCEPT)
+        {
+                char *file = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+                setup_filereq_cb (entry, file);
+                g_free (file);
+        }
+
+        g_object_unref (dialog);
+}
+
+static void
 setup_browsefile_cb (GtkWidget *button, GtkWidget *entry)
 {
-        /* used for background image only */
-        char *filter;
-        int filter_type;
+        GtkFileChooserNative *dialog;
+        GtkFileFilter *filefilter;
+        const char *current;
+        char *dirname;
 
+        (void)button;
+        dialog = gtk_file_chooser_native_new (_("Select an Image File"),
+                                              GTK_WINDOW (setup_window),
+                                              GTK_FILE_CHOOSER_ACTION_OPEN,
+                                              _("_Open"),
+                                              _("_Cancel"));
+        gtk_native_dialog_set_modal (GTK_NATIVE_DIALOG (dialog), TRUE);
+
+        current = gtk_entry_get_text (GTK_ENTRY (entry));
+        if (current && current[0])
+        {
+                dirname = g_path_get_dirname (current);
+                if (dirname && dirname[0] && g_file_test (dirname, G_FILE_TEST_IS_DIR))
+                        gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), dirname);
+                else if (g_file_test (current, G_FILE_TEST_IS_DIR))
+                        gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), current);
+                g_free (dirname);
+        }
+
+        filefilter = gtk_file_filter_new ();
 #ifdef WIN32
-        filter = "*png;*.tiff;*.gif;*.jpeg;*.jpg";
-        filter_type = FRF_EXTENSIONS;
+        gtk_file_filter_add_pattern (filefilter, "*.png");
+        gtk_file_filter_add_pattern (filefilter, "*.tiff");
+        gtk_file_filter_add_pattern (filefilter, "*.gif");
+        gtk_file_filter_add_pattern (filefilter, "*.jpeg");
+        gtk_file_filter_add_pattern (filefilter, "*.jpg");
 #else
-        filter = "image/*";
-        filter_type = FRF_MIMETYPES;
+        gtk_file_filter_add_mime_type (filefilter, "image/*");
 #endif
-        gtkutil_file_req (GTK_WINDOW (setup_window), _("Select an Image File"), setup_filereq_cb,
-                                        entry, NULL, filter, filter_type|FRF_RECENTLYUSED|FRF_MODAL);
+        gtk_file_filter_set_name (filefilter, _("Images"));
+        gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (dialog), filefilter);
+
+        g_signal_connect (G_OBJECT (dialog), "response",
+                          G_CALLBACK (setup_browsefile_response_cb), entry);
+        gtk_native_dialog_show (GTK_NATIVE_DIALOG (dialog));
 }
 
 
@@ -1440,6 +1487,41 @@ setup_create_theme_page (void)
         return theme_preferences_create_page (GTK_WINDOW (setup_window),
                                                     &setup_prefs,
                                                     &color_change);
+}
+
+static GtkWidget *
+setup_create_appearance_page (void)
+{
+        GtkWidget *box;
+        GtkWidget *appearance_page;
+        GtkWidget *theme_label;
+        GtkWidget *theme_page;
+        GtkWidget *advanced_page;
+
+        box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+        appearance_page = setup_create_page (appearance_settings);
+        theme_label = gtk_label_new (NULL);
+        theme_page = setup_create_theme_page ();
+        advanced_page = setup_create_page (appearance_advanced_settings);
+
+        {
+                char *markup = g_markup_printf_escaped ("<b>%s</b>", _("GTK3 Theme"));
+                gtk_label_set_markup (GTK_LABEL (theme_label), markup);
+                g_free (markup);
+        }
+        gtk_widget_set_halign (theme_label, GTK_ALIGN_START);
+        gtk_widget_set_valign (theme_label, GTK_ALIGN_CENTER);
+        gtk_widget_set_margin_start (theme_label, 2);
+        gtk_widget_set_margin_end (theme_label, 2);
+        gtk_widget_set_margin_top (theme_label, 1);
+        gtk_widget_set_margin_bottom (theme_label, 1);
+
+        gtk_box_pack_start (GTK_BOX (box), appearance_page, FALSE, FALSE, 0);
+        gtk_box_pack_start (GTK_BOX (box), theme_label, FALSE, FALSE, 2);
+        gtk_box_pack_start (GTK_BOX (box), theme_page, FALSE, FALSE, 0);
+        gtk_box_pack_start (GTK_BOX (box), advanced_page, FALSE, FALSE, 0);
+
+        return box;
 }
 
 /* === GLOBALS for sound GUI === */
@@ -1729,7 +1811,6 @@ static const char *const cata_interface[] =
         N_("Input box"),
         N_("User list"),
         N_("Channel switcher"),
-        N_("GTK3 Theme"),
         NULL
 };
 
@@ -1755,15 +1836,15 @@ static GtkWidget *
 setup_create_pages (GtkWidget *box)
 {
         GtkWidget *book;
-        GtkWindow *win = GTK_WINDOW(gtk_widget_get_toplevel (box));
+        GtkWindow *win = GTK_WINDOW (setup_window);
 
+        (void)box;
         book = gtk_notebook_new ();
 
-        setup_add_page (cata_interface[0], book, setup_create_page (appearance_settings));
+        setup_add_page (cata_interface[0], book, setup_create_appearance_page ());
         setup_add_page (cata_interface[1], book, setup_create_page (inputbox_settings));
         setup_add_page (cata_interface[2], book, setup_create_page (userlist_settings));
         setup_add_page (cata_interface[3], book, setup_create_page (tabs_settings));
-        setup_add_page (cata_interface[4], book, setup_create_theme_page ());
 
         setup_add_page (cata_chatting[0], book, setup_create_page (general_settings));
 
@@ -2124,6 +2205,7 @@ setup_window_open (void)
 
         g_snprintf(buf, sizeof(buf), _("Preferences - %s"), _(DISPLAY_NAME));
         win = gtkutil_window_new (buf, "prefs", 0, 600, 2);
+        setup_window = win;
 
         vbox = gtkutil_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 5);
         gtk_container_set_border_width (GTK_CONTAINER (vbox), 6);

@@ -689,12 +689,15 @@ settings_apply_from_file (const char *theme_root, const char *css_dir)
 		for (i = 0; keys && i < n_keys; i++)
 		{
 			char *raw_value;
+			char *value;
 
 			raw_value = g_key_file_get_value (keyfile, "Settings", keys[i], NULL);
 			if (!raw_value)
 				continue;
 
-			settings_apply_property (settings, keys[i], raw_value);
+			value = g_strstrip (raw_value);
+			if (value[0] != '\0')
+				settings_apply_property (settings, keys[i], value);
 			g_free (raw_value);
 		}
 

@@ -364,20 +364,30 @@ xtext_draw_bg_offset (GtkXText *xtext, int x, int y, int width, int height, int 
 
 	if (xtext->background_surface)
 	{
-		int clip_x = xtext->clip_x;
-		int clip_y = xtext->clip_y;
-		int clip_w = xtext->clip_x2 - xtext->clip_x;
-		int clip_h = xtext->clip_y2 - xtext->clip_y;
+		GtkAllocation allocation;
+		int clip_x;
+		int clip_y;
+		int clip_w;
+		int clip_h;
 
-		if (clip_w < 1 || clip_h < 1)
+		if (cairo_surface_status (xtext->background_surface) != CAIRO_STATUS_SUCCESS)
 		{
-			GtkAllocation allocation;
+			xtext_draw_rectangle (xtext, cr, &xtext->bgc, x, y, width, height);
+			cairo_destroy (cr);
+			return;
+		}
 
-			gtk_widget_get_allocation (GTK_WIDGET (xtext), &allocation);
-			clip_x = 0;
-			clip_y = 0;
-			clip_w = allocation.width;
-			clip_h = allocation.height;
+		gtk_widget_get_allocation (GTK_WIDGET (xtext), &allocation);
+		clip_x = 0;
+		clip_y = 0;
+		clip_w = allocation.width;
+		clip_h = allocation.height;
+
+		if (clip_w < 1 || clip_h < 1 || clip_w > 8192 || clip_h > 8192)
+		{
+			xtext_draw_rectangle (xtext, cr, &xtext->bgc, x, y, width, height);
+			cairo_destroy (cr);
+			return;
 		}
 
 		if (xtext->background_clip_surface == NULL ||
@@ -396,11 +406,54 @@ xtext_draw_bg_offset (GtkXText *xtext, int x, int y, int width, int height, int 
 			}
 
 			xtext->background_clip_surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, clip_w, clip_h);
+			if (cairo_surface_status (xtext->background_clip_surface) != CAIRO_STATUS_SUCCESS)
+			{
+				cairo_surface_destroy (xtext->background_clip_surface);
+				xtext->background_clip_surface = NULL;
+				xtext_draw_rectangle (xtext, cr, &xtext->bgc, x, y, width, height);
+				cairo_destroy (cr);
+				return;
+			}
 			bg_cr = cairo_create (xtext->background_clip_surface);
-			cairo_set_source_surface (bg_cr, xtext->background_surface, tile_x - clip_x, tile_y - clip_y);
-			cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_REPEAT);
-			cairo_rectangle (bg_cr, 0.0, 0.0, (double)clip_w, (double)clip_h);
-			cairo_fill (bg_cr);
+			if (cairo_surface_get_type (xtext->background_surface) == CAIRO_SURFACE_TYPE_IMAGE)
+			{
+				int src_w = cairo_image_surface_get_width (xtext->background_surface);
+				int src_h = cairo_image_surface_get_height (xtext->background_surface);
+				if (src_w > 0 && src_h > 0)
+				{
+					double scale_x = (double)clip_w / (double)src_w;
+					double scale_y = (double)clip_h / (double)src_h;
+					double scale = scale_x < scale_y ? scale_x : scale_y;
+					double draw_w = src_w * scale;
+					double draw_h = src_h * scale;
+					double draw_x = ((double)clip_w - draw_w) / 2.0;
+					double draw_y = ((double)clip_h - draw_h) / 2.0;
+					cairo_set_source_rgb (bg_cr, 0.0, 0.0, 0.0);
+					cairo_paint (bg_cr);
+					cairo_save (bg_cr);
+					cairo_translate (bg_cr, draw_x, draw_y);
+					cairo_scale (bg_cr, scale, scale);
+					cairo_set_source_surface (bg_cr, xtext->background_surface, 0.0, 0.0);
+					cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_NONE);
+					cairo_rectangle (bg_cr, 0.0, 0.0, (double)src_w, (double)src_h);
+					cairo_fill (bg_cr);
+					cairo_restore (bg_cr);
+				}
+				else
+				{
+					cairo_set_source_surface (bg_cr, xtext->background_surface, tile_x - clip_x, tile_y - clip_y);
+					cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_REPEAT);
+					cairo_rectangle (bg_cr, 0.0, 0.0, (double)clip_w, (double)clip_h);
+					cairo_fill (bg_cr);
+				}
+			}
+			else
+			{
+				cairo_set_source_surface (bg_cr, xtext->background_surface, tile_x - clip_x, tile_y - clip_y);
+				cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_REPEAT);
+				cairo_rectangle (bg_cr, 0.0, 0.0, (double)clip_w, (double)clip_h);
+				cairo_fill (bg_cr);
+			}
 			cairo_destroy (bg_cr);
 
 			xtext->background_clip_x = clip_x;
