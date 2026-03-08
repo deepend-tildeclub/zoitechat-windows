@@ -56,6 +56,38 @@ remove_tree (const char *path)
 }
 
 static gboolean
+path_tree_has_entries (const char *path)
+{
+	GDir *dir;
+	const char *name;
+
+	if (!path || !g_file_test (path, G_FILE_TEST_EXISTS))
+		return FALSE;
+
+	if (!g_file_test (path, G_FILE_TEST_IS_DIR))
+		return TRUE;
+
+	dir = g_dir_open (path, 0, NULL);
+	if (!dir)
+		return FALSE;
+
+	while ((name = g_dir_read_name (dir)) != NULL)
+	{
+		char *child = g_build_filename (path, name, NULL);
+		gboolean has_entries = path_tree_has_entries (child);
+		g_free (child);
+		if (has_entries)
+		{
+			g_dir_close (dir);
+			return TRUE;
+		}
+	}
+
+	g_dir_close (dir);
+	return FALSE;
+}
+
+static gboolean
 gtk3_css_dir_parse_minor (const char *name, gint *minor)
 {
 	gint parsed_minor = 0;
@@ -268,8 +300,8 @@ resolve_parent_theme_root (const char *child_theme_root, const char *parent_name
 
 static void
 build_inheritance_chain_recursive (const char *theme_root,
-	                               GPtrArray *ordered_roots,
-	                               GHashTable *visited)
+								   GPtrArray *ordered_roots,
+								   GHashTable *visited)
 {
 	char **parents;
 	guint i;
@@ -365,7 +397,7 @@ path_read_display_name (const char *root)
 	char *name = NULL;
 
 	if (g_file_test (index_theme, G_FILE_TEST_IS_REGULAR) &&
-	    g_key_file_load_from_file (keyfile, index_theme, G_KEY_FILE_NONE, NULL))
+		g_key_file_load_from_file (keyfile, index_theme, G_KEY_FILE_NONE, NULL))
 	{
 		name = g_key_file_get_string (keyfile, "Desktop Entry", "Name", NULL);
 		if (!name)
@@ -475,8 +507,8 @@ path_normalize_theme_root (const char *path)
 	{
 		char *base = g_path_get_dirname (canonical);
 		char *resolved = g_path_is_absolute (target)
-			? g_strdup (target)
-			: g_build_filename (base, target, NULL);
+		? g_strdup (target)
+		: g_build_filename (base, target, NULL);
 		g_free (canonical);
 		canonical = g_canonicalize_filename (resolved, NULL);
 		g_free (resolved);
@@ -774,8 +806,8 @@ validate_theme_root_for_import (const char *theme_root, GError **error)
 	if (!g_file_test (index_theme, G_FILE_TEST_IS_REGULAR))
 	{
 		g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_INVAL,
-		             "Invalid GTK3 theme at '%s': missing required index.theme at '%s'.",
-		             theme_root, index_theme);
+					 "Invalid GTK3 theme at '%s': missing required index.theme at '%s'.",
+			   theme_root, index_theme);
 		g_free (index_theme);
 		return FALSE;
 	}
@@ -784,8 +816,8 @@ validate_theme_root_for_import (const char *theme_root, GError **error)
 	if (!g_key_file_load_from_file (keyfile, index_theme, G_KEY_FILE_NONE, &load_error))
 	{
 		g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_INVAL,
-		             "Invalid GTK3 theme at '%s': failed to parse index.theme '%s': %s.",
-		             theme_root, index_theme, load_error->message);
+					 "Invalid GTK3 theme at '%s': failed to parse index.theme '%s': %s.",
+			   theme_root, index_theme, load_error->message);
 		g_error_free (load_error);
 		g_key_file_unref (keyfile);
 		g_free (index_theme);
@@ -795,8 +827,8 @@ validate_theme_root_for_import (const char *theme_root, GError **error)
 	if (!g_key_file_has_group (keyfile, "Desktop Entry"))
 	{
 		g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_INVAL,
-		             "Invalid GTK3 theme at '%s': index.theme '%s' is missing the [Desktop Entry] section.",
-		             theme_root, index_theme);
+					 "Invalid GTK3 theme at '%s': index.theme '%s' is missing the [Desktop Entry] section.",
+			   theme_root, index_theme);
 		g_key_file_unref (keyfile);
 		g_free (index_theme);
 		return FALSE;
@@ -806,8 +838,8 @@ validate_theme_root_for_import (const char *theme_root, GError **error)
 	if (!css_dir)
 	{
 		g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_INVAL,
-		             "Invalid GTK3 theme at '%s': could not resolve a GTK CSS directory (expected gtk-3.x/gtk.css).",
-		             theme_root);
+					 "Invalid GTK3 theme at '%s': could not resolve a GTK CSS directory (expected gtk-3.x/gtk.css).",
+					 theme_root);
 		g_key_file_unref (keyfile);
 		g_free (index_theme);
 		return FALSE;
@@ -817,8 +849,8 @@ validate_theme_root_for_import (const char *theme_root, GError **error)
 	if (!g_file_test (css_path, G_FILE_TEST_IS_REGULAR))
 	{
 		g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_INVAL,
-		             "Invalid GTK3 theme at '%s': missing primary gtk.css at '%s'.",
-		             theme_root, css_path);
+					 "Invalid GTK3 theme at '%s': missing primary gtk.css at '%s'.",
+			   theme_root, css_path);
 		g_free (css_path);
 		g_free (css_dir);
 		g_key_file_unref (keyfile);
@@ -849,8 +881,8 @@ validate_theme_root_for_import (const char *theme_root, GError **error)
 		if (!parent_root)
 		{
 			g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_INVAL,
-			             "Invalid GTK3 theme at '%s': parent theme '%s' from Inherits could not be resolved.",
-			             theme_root, parent_name);
+						 "Invalid GTK3 theme at '%s': parent theme '%s' from Inherits could not be resolved.",
+				theme_root, parent_name);
 			g_strfreev (inherits);
 			return FALSE;
 		}
@@ -865,7 +897,7 @@ static char *
 extract_archive (const char *source, GError **error)
 {
 	char *tmp = g_dir_make_tmp ("zoitechat-gtk3-theme-XXXXXX", error);
-#ifdef G_OS_WIN32
+	#ifdef G_OS_WIN32
 	char *stdout_text = NULL;
 	char *stderr_text = NULL;
 	char *system_tar = NULL;
@@ -895,7 +927,7 @@ extract_archive (const char *source, GError **error)
 		};
 
 		extracted = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
-		                         &stdout_text, &stderr_text, &status, NULL);
+								  &stdout_text, &stderr_text, &status, NULL);
 	}
 	else
 	{
@@ -927,7 +959,7 @@ extract_archive (const char *source, GError **error)
 			};
 
 			extracted = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
-			                         &stdout_text, &stderr_text, &status, NULL);
+									  &stdout_text, &stderr_text, &status, NULL);
 		}
 		else
 		{
@@ -941,25 +973,37 @@ extract_archive (const char *source, GError **error)
 			};
 
 			extracted = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
-			                         &stdout_text, &stderr_text, &status, NULL);
+									  &stdout_text, &stderr_text, &status, NULL);
 		}
 	}
 
-	g_free (tar_program);
-	g_free (system_tar);
-	g_free (system_root);
-	g_free (stdout_text);
-	g_free (stderr_text);
-	if (!extracted || status != 0)
+	if (!extracted || (status != 0 && !path_tree_has_entries (tmp)))
 	{
+		g_free (tar_program);
+		g_free (system_tar);
+		g_free (system_root);
+		g_free (stdout_text);
+		g_free (stderr_text);
 		remove_tree (tmp);
 		g_free (tmp);
 		g_set_error_literal (error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Failed to extract theme archive.");
 		return NULL;
 	}
 
+	/*
+	 * Windows archive tools often return a non-zero exit status for Unix-style
+	 * symlink entries that cannot be materialized without extra privileges.
+	 * If regular theme files were extracted, continue and let theme validation
+	 * decide whether the imported theme is usable.
+	 */
+	g_free (tar_program);
+	g_free (system_tar);
+	g_free (system_root);
+	g_free (stdout_text);
+	g_free (stderr_text);
+
 	return tmp;
-#else
+	#else
 	struct archive *archive = NULL;
 	struct archive *disk = NULL;
 	struct archive_entry *entry;
@@ -1046,7 +1090,7 @@ extract_archive (const char *source, GError **error)
 	}
 
 	return tmp;
-#endif
+	#endif
 }
 
 gboolean
