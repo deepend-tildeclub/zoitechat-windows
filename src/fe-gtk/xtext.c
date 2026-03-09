@@ -47,6 +47,7 @@
 #include "fe-gtk.h"
 #include "xtext.h"
 #include "fkeys.h"
+#include "theme/theme-access.h"
 
 #define charlen(str) g_utf8_skip[*(guchar *)(str)]
 
@@ -363,8 +364,107 @@ xtext_draw_bg_offset (GtkXText *xtext, int x, int y, int width, int height, int 
 
 	if (xtext->background_surface)
 	{
-		cairo_set_source_surface (cr, xtext->background_surface, tile_x, tile_y);
-		cairo_pattern_set_extend (cairo_get_source (cr), CAIRO_EXTEND_REPEAT);
+		GtkAllocation allocation;
+		int clip_x;
+		int clip_y;
+		int clip_w;
+		int clip_h;
+
+		if (cairo_surface_status (xtext->background_surface) != CAIRO_STATUS_SUCCESS)
+		{
+			xtext_draw_rectangle (xtext, cr, &xtext->bgc, x, y, width, height);
+			cairo_destroy (cr);
+			return;
+		}
+
+		gtk_widget_get_allocation (GTK_WIDGET (xtext), &allocation);
+		clip_x = 0;
+		clip_y = 0;
+		clip_w = allocation.width;
+		clip_h = allocation.height;
+
+		if (clip_w < 1 || clip_h < 1 || clip_w > 8192 || clip_h > 8192)
+		{
+			xtext_draw_rectangle (xtext, cr, &xtext->bgc, x, y, width, height);
+			cairo_destroy (cr);
+			return;
+		}
+
+		if (xtext->background_clip_surface == NULL ||
+			xtext->background_clip_cycle != xtext->render_cycle ||
+			xtext->background_clip_x != clip_x ||
+			xtext->background_clip_y != clip_y ||
+			xtext->background_clip_width != clip_w ||
+			xtext->background_clip_height != clip_h)
+		{
+			cairo_t *bg_cr;
+
+			if (xtext->background_clip_surface)
+			{
+				cairo_surface_destroy (xtext->background_clip_surface);
+				xtext->background_clip_surface = NULL;
+			}
+
+			xtext->background_clip_surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, clip_w, clip_h);
+			if (cairo_surface_status (xtext->background_clip_surface) != CAIRO_STATUS_SUCCESS)
+			{
+				cairo_surface_destroy (xtext->background_clip_surface);
+				xtext->background_clip_surface = NULL;
+				xtext_draw_rectangle (xtext, cr, &xtext->bgc, x, y, width, height);
+				cairo_destroy (cr);
+				return;
+			}
+			bg_cr = cairo_create (xtext->background_clip_surface);
+			if (cairo_surface_get_type (xtext->background_surface) == CAIRO_SURFACE_TYPE_IMAGE)
+			{
+				int src_w = cairo_image_surface_get_width (xtext->background_surface);
+				int src_h = cairo_image_surface_get_height (xtext->background_surface);
+				if (src_w > 0 && src_h > 0)
+				{
+					double scale_x = (double)clip_w / (double)src_w;
+					double scale_y = (double)clip_h / (double)src_h;
+					double scale = scale_x < scale_y ? scale_x : scale_y;
+					double draw_w = src_w * scale;
+					double draw_h = src_h * scale;
+					double draw_x = ((double)clip_w - draw_w) / 2.0;
+					double draw_y = ((double)clip_h - draw_h) / 2.0;
+					cairo_set_source_rgb (bg_cr, 0.0, 0.0, 0.0);
+					cairo_paint (bg_cr);
+					cairo_save (bg_cr);
+					cairo_translate (bg_cr, draw_x, draw_y);
+					cairo_scale (bg_cr, scale, scale);
+					cairo_set_source_surface (bg_cr, xtext->background_surface, 0.0, 0.0);
+					cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_NONE);
+					cairo_rectangle (bg_cr, 0.0, 0.0, (double)src_w, (double)src_h);
+					cairo_fill (bg_cr);
+					cairo_restore (bg_cr);
+				}
+				else
+				{
+					cairo_set_source_surface (bg_cr, xtext->background_surface, tile_x - clip_x, tile_y - clip_y);
+					cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_REPEAT);
+					cairo_rectangle (bg_cr, 0.0, 0.0, (double)clip_w, (double)clip_h);
+					cairo_fill (bg_cr);
+				}
+			}
+			else
+			{
+				cairo_set_source_surface (bg_cr, xtext->background_surface, tile_x - clip_x, tile_y - clip_y);
+				cairo_pattern_set_extend (cairo_get_source (bg_cr), CAIRO_EXTEND_REPEAT);
+				cairo_rectangle (bg_cr, 0.0, 0.0, (double)clip_w, (double)clip_h);
+				cairo_fill (bg_cr);
+			}
+			cairo_destroy (bg_cr);
+
+			xtext->background_clip_x = clip_x;
+			xtext->background_clip_y = clip_y;
+			xtext->background_clip_width = clip_w;
+			xtext->background_clip_height = clip_h;
+			xtext->background_clip_cycle = xtext->render_cycle;
+		}
+
+		cairo_set_source_surface (cr, xtext->background_clip_surface,
+			(double)xtext->background_clip_x, (double)xtext->background_clip_y);
 		cairo_rectangle (cr, (double)x, (double)y, (double)width, (double)height);
 		cairo_fill (cr);
 	}
@@ -629,12 +729,35 @@ xtext_set_bg (GtkXText *xtext, int index)
 }
 
 static void
+gtk_xtext_sync_palette_from_theme (GtkXText *xtext)
+{
+	XTextColor palette[XTEXT_COLS];
+
+	theme_get_xtext_colors_for_widget (GTK_WIDGET (xtext), palette, G_N_ELEMENTS (palette));
+	gtk_xtext_set_palette (xtext, palette);
+}
+
+static void
+gtk_xtext_style_updated (GtkWidget *widget, gpointer user_data)
+{
+	(void) user_data;
+	gtk_xtext_sync_palette_from_theme (GTK_XTEXT (widget));
+}
+
+static void
 gtk_xtext_init (GtkXText * xtext)
 {
 	xtext->background_surface = NULL;
+	xtext->background_clip_surface = NULL;
 	xtext->draw_window = NULL;
 	xtext->draw_surface = NULL;
 	xtext->draw_cr = NULL;
+	xtext->background_clip_x = 0;
+	xtext->background_clip_y = 0;
+	xtext->background_clip_width = 0;
+	xtext->background_clip_height = 0;
+	xtext->background_clip_cycle = 0;
+	xtext->render_cycle = 0;
 	xtext->io_tag = 0;
 	xtext->add_io_tag = 0;
 	xtext->scroll_tag = 0;
@@ -668,6 +791,8 @@ gtk_xtext_init (GtkXText * xtext)
 	gtk_xtext_scroll_adjustments (xtext, NULL, NULL);
 
 	gtk_xtext_install_selection_targets (GTK_WIDGET (xtext));
+	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (xtext)), "view");
+	g_signal_connect (G_OBJECT (xtext), "style-updated", G_CALLBACK (gtk_xtext_style_updated), NULL);
 }
 
 static void
@@ -768,6 +893,7 @@ gtk_xtext_new (const XTextColor *palette, int separator)
 
 	/* GTK3 already uses the GTK render pipeline; no manual double-buffering toggle. */
 	gtk_xtext_set_palette (xtext, palette);
+	gtk_xtext_sync_palette_from_theme (xtext);
 
 	return GTK_WIDGET (xtext);
 }
@@ -797,6 +923,12 @@ gtk_xtext_cleanup (GtkXText *xtext)
 	{
 		cairo_surface_destroy (xtext->background_surface);
 		xtext->background_surface = NULL;
+	}
+
+	if (xtext->background_clip_surface)
+	{
+		cairo_surface_destroy (xtext->background_clip_surface);
+		xtext->background_clip_surface = NULL;
 	}
 
 	if (xtext->font)
@@ -1356,6 +1488,12 @@ gtk_xtext_render (GtkWidget *widget, GdkRectangle *area, cairo_t *cr)
 	cairo_t *old_cr = xtext->draw_cr;
 
 	xtext->draw_cr = cr;
+	xtext->render_cycle++;
+	if (xtext->background_clip_surface)
+	{
+		cairo_surface_destroy (xtext->background_clip_surface);
+		xtext->background_clip_surface = NULL;
+	}
 
 	gtk_widget_get_allocation (widget, &allocation);
 
@@ -1418,6 +1556,11 @@ xit:
 		gtk_xtext_draw_sep (xtext, -1);
 
 done:
+	if (xtext->background_clip_surface)
+	{
+		cairo_surface_destroy (xtext->background_clip_surface);
+		xtext->background_clip_surface = NULL;
+	}
 	xtext->draw_cr = old_cr;
 }
 
@@ -2973,8 +3116,6 @@ gtk_xtext_render_flush (GtkXText * xtext, int x, int y, unsigned char *str,
 							int len, int *emphasis, int str_width)
 {
 	int dofill;
-	int tile_x = xtext->ts_x;
-	int tile_y = xtext->ts_y;
 
 	if (xtext->dont_render || len < 1 || xtext->hidden)
 		return 0;
@@ -2999,16 +3140,7 @@ gtk_xtext_render_flush (GtkXText * xtext, int x, int y, unsigned char *str,
 			goto dounder;
 	}
 
-	dofill = TRUE;
-
-	/* backcolor is always handled by XDrawImageString */
-	if (!xtext->backcolor && xtext->background_surface)
-	{
-	/* draw the background surface behind the text - CAUSES FLICKER HERE!! */
-		xtext_draw_bg_offset (xtext, x, y - xtext->font->ascent, str_width,
-							xtext->fontsize, tile_x, tile_y);
-		dofill = FALSE;	/* already drawn the background */
-	}
+	dofill = !xtext->background_surface || xtext->backcolor;
 
 	backend_draw_text_emph (xtext, dofill, x, y, str, len, str_width, *emphasis);
 
@@ -3793,18 +3925,6 @@ gtk_xtext_render_line (GtkXText * xtext, textentry * ent, int line,
 	indent = ent->indent;
 	start_subline = subline;
 
-	/* draw the timestamp */
-	if (xtext->auto_indent && xtext->buffer->time_stamp &&
-		 (!xtext->skip_stamp || xtext->mark_stamp || xtext->force_stamp))
-	{
-		char *time_str;
-		int len;
-
-		len = xtext_get_stamp_str (ent->stamp, &time_str);
-		gtk_xtext_render_stamp (xtext, ent, time_str, len, line, win_width);
-		g_free (time_str);
-	}
-
 	/* draw each line one by one */
 	do
 	{
@@ -3818,6 +3938,28 @@ gtk_xtext_render_line (GtkXText * xtext, textentry * ent, int line,
 		y = (xtext->fontsize * line) + xtext->font->ascent - xtext->pixel_offset;
 		if (!subline)
 		{
+			int bg_x;
+			int bg_w;
+
+			if (!xtext->dont_render)
+			{
+				bg_x = MAX (0, xtext->clip_x);
+				bg_w = MIN (win_width + MARGIN, xtext->clip_x2) - bg_x;
+				if (bg_w > 0)
+					xtext_draw_bg (xtext, bg_x, y - xtext->font->ascent, bg_w, xtext->fontsize);
+			}
+
+			if (entline == 1 && xtext->auto_indent && xtext->buffer->time_stamp &&
+				 (!xtext->skip_stamp || xtext->mark_stamp || xtext->force_stamp))
+			{
+				char *time_str;
+				int stamp_len;
+
+				stamp_len = xtext_get_stamp_str (ent->stamp, &time_str);
+				gtk_xtext_render_stamp (xtext, ent, time_str, stamp_len, line, win_width);
+				g_free (time_str);
+			}
+
 			if (!gtk_xtext_render_str (xtext, y, ent, str, len, win_width,
 												indent, line, FALSE, NULL, &emphasis))
 			{
@@ -3958,6 +4100,12 @@ gtk_xtext_set_background (GtkXText * xtext, cairo_surface_t *surface)
 	{
 		cairo_surface_destroy (xtext->background_surface);
 		xtext->background_surface = NULL;
+	}
+
+	if (xtext->background_clip_surface)
+	{
+		cairo_surface_destroy (xtext->background_clip_surface);
+		xtext->background_clip_surface = NULL;
 	}
 
 	dontscroll (xtext->buffer);
