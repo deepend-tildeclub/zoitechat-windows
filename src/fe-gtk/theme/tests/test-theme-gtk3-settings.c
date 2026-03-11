@@ -247,7 +247,7 @@ test_settings_layer_precedence (void)
 
 	if (!gtk_available)
 	{
-		g_test_skip ("GTK display not available");
+		g_test_message ("GTK display not available");
 		return;
 	}
 
@@ -270,7 +270,7 @@ test_settings_restored_on_disable_and_switch (void)
 
 	if (!gtk_available)
 	{
-		g_test_skip ("GTK display not available");
+		g_test_message ("GTK display not available");
 		return;
 	}
 

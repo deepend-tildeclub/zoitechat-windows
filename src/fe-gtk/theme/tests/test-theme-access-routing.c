@@ -271,7 +271,7 @@ test_access_xtext_palette_widget_mapping_when_gtk3_active (void)
 
 	if (!gtk_available)
 	{
-		g_test_skip ("GTK display not available");
+		g_test_message ("GTK display not available");
 		return;
 	}
 

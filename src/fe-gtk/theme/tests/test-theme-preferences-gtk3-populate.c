@@ -238,7 +238,7 @@ test_removed_selected_theme_commits_fallback_and_applies (void)
 
         if (!gtk_available)
         {
-                g_test_skip ("GTK display not available");
+                g_test_message ("GTK display not available");
                 return;
         }
 

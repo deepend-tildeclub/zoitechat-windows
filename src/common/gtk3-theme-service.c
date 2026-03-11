@@ -22,7 +22,12 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
+
+#ifndef G_OS_WIN32
+extern char *realpath (const char *path, char *resolved_path);
+#endif
 
 #include "util.h"
 #include "cfgfiles.h"
@@ -494,6 +499,49 @@ discover_dir (GPtrArray *themes, GHashTable *seen_theme_roots, const char *base_
 }
 
 
+
+static char *
+path_canonicalize_compat (const char *path)
+{
+	char *absolute_path;
+	char *cwd;
+	char *resolved;
+
+	if (!path || path[0] == '\0')
+		return NULL;
+
+	if (g_path_is_absolute (path))
+		absolute_path = g_strdup (path);
+	else
+	{
+		cwd = g_get_current_dir ();
+		absolute_path = g_build_filename (cwd, path, NULL);
+		g_free (cwd);
+	}
+
+#ifdef G_OS_WIN32
+	resolved = _fullpath (NULL, absolute_path, 0);
+	if (resolved)
+	{
+		char *copy = g_strdup (resolved);
+		free (resolved);
+		g_free (absolute_path);
+		return copy;
+	}
+#else
+	resolved = realpath (absolute_path, NULL);
+	if (resolved)
+	{
+		char *copy = g_strdup (resolved);
+		free (resolved);
+		g_free (absolute_path);
+		return copy;
+	}
+#endif
+
+	return absolute_path;
+}
+
 static char *
 path_normalize_theme_root (const char *path)
 {
@@ -503,7 +551,7 @@ path_normalize_theme_root (const char *path)
 	if (!path || path[0] == '\0')
 		return NULL;
 
-	canonical = g_canonicalize_filename (path, NULL);
+	canonical = path_canonicalize_compat (path);
 	target = g_file_read_link (canonical, NULL);
 	if (target && target[0])
 	{
@@ -512,7 +560,7 @@ path_normalize_theme_root (const char *path)
 		? g_strdup (target)
 		: g_build_filename (base, target, NULL);
 		g_free (canonical);
-		canonical = g_canonicalize_filename (resolved, NULL);
+		canonical = path_canonicalize_compat (resolved);
 		g_free (resolved);
 		g_free (base);
 	}
@@ -536,7 +584,7 @@ add_theme_root (GPtrArray *roots, GHashTable *seen, const char *path)
 	if (!path || path[0] == '\0')
 		return;
 
-	normalized = g_canonicalize_filename (path, NULL);
+	normalized = path_canonicalize_compat (path);
 	if (g_hash_table_contains (seen, normalized))
 	{
 		g_free (normalized);
