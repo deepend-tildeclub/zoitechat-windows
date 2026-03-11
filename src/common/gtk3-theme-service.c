@@ -55,6 +55,7 @@ remove_tree (const char *path)
 	g_rmdir (path);
 }
 
+#ifdef G_OS_WIN32
 static gboolean
 path_tree_has_entries (const char *path)
 {
@@ -86,6 +87,7 @@ path_tree_has_entries (const char *path)
 	g_dir_close (dir);
 	return FALSE;
 }
+#endif
 
 static gboolean
 gtk3_css_dir_parse_minor (const char *name, gint *minor)

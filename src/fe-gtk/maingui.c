@@ -408,7 +408,7 @@ mg_attr_list_create (const XTextColor *col, int size)
 static void
 mg_create_tab_colors (void)
 {
-        XTextColor gui_palette[XTEXT_COLS];
+        XTextColor gui_palette[THEME_TOKEN_COUNT];
 
         if (plain_list)
         {
