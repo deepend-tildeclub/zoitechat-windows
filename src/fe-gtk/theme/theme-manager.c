@@ -434,7 +434,9 @@ theme_manager_apply_wayland_kde_csd (GtkWidget *window)
 			headerbar = gtk_header_bar_new ();
 			gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (headerbar), TRUE);
 			gtk_header_bar_set_decoration_layout (GTK_HEADER_BAR (headerbar), "menu:minimize,maximize,close");
-			icon_pixbuf = gdk_pixbuf_new_from_resource_at_scale ("/icons/zoitechat.png", 32, 32, TRUE, NULL);
+			icon_pixbuf = gdk_pixbuf_new_from_resource_at_scale ("/icons/zoitechat.svg", 32, 32, TRUE, NULL);
+			if (!icon_pixbuf)
+				icon_pixbuf = gdk_pixbuf_new_from_resource_at_scale ("/icons/zoitechat.png", 32, 32, TRUE, NULL);
 			icon_image = icon_pixbuf ? gtk_image_new_from_pixbuf (icon_pixbuf) : gtk_image_new_from_resource ("/icons/zoitechat.png");
 			if (icon_pixbuf)
 				g_object_unref (icon_pixbuf);
