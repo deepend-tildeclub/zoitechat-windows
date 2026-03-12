@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <glib/gstdio.h>
 
 #include "fe-gtk.h"
 
@@ -194,6 +195,12 @@ plugingui_load_cb (session *sess, char *file)
 	{
 		char *buf;
 		char *load_target;
+		char *addons_dir;
+		char *basename;
+		char *addons_target;
+		char *canonical_addons;
+		char *canonical_file;
+		gboolean file_in_addons;
 
 		target_sess = is_session (sess) ? sess : current_sess;
 		if (!is_session (target_sess))
@@ -203,6 +210,39 @@ plugingui_load_cb (session *sess, char *file)
 		}
 
 		load_target = g_strdup (file);
+		addons_dir = g_build_filename (get_xdir (), "addons", NULL);
+		canonical_addons = g_canonicalize_filename (addons_dir, NULL);
+		canonical_file = g_canonicalize_filename (file, NULL);
+		file_in_addons = g_str_has_prefix (canonical_file, canonical_addons)
+			&& (canonical_file[strlen (canonical_addons)] == G_DIR_SEPARATOR
+				|| canonical_file[strlen (canonical_addons)] == '\0');
+
+		if (!file_in_addons)
+		{
+			char *contents;
+			gsize length;
+
+			if (g_mkdir_with_parents (addons_dir, 0700) == 0)
+			{
+				basename = g_path_get_basename (file);
+				addons_target = g_build_filename (addons_dir, basename, NULL);
+				if (g_file_get_contents (file, &contents, &length, NULL))
+				{
+					if (g_file_set_contents (addons_target, contents, length, NULL))
+					{
+						g_free (load_target);
+						load_target = g_strdup (addons_target);
+					}
+					g_free (contents);
+				}
+				g_free (addons_target);
+				g_free (basename);
+			}
+		}
+
+		g_free (canonical_addons);
+		g_free (canonical_file);
+		g_free (addons_dir);
 
 #ifdef WIN32
 		/*
