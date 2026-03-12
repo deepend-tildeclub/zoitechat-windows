@@ -102,6 +102,7 @@ theme_manager_synthesize_preference_reasons (const struct zoitechatprefs *old_pr
 		reasons |= THEME_CHANGED_REASON_IDENTD;
 	if (color_change ||
 	    old_prefs->hex_gui_ulist_color != new_prefs->hex_gui_ulist_color ||
+	    old_prefs->hex_text_color_nicks != new_prefs->hex_text_color_nicks ||
 	    old_prefs->hex_away_size_max != new_prefs->hex_away_size_max ||
 	    old_prefs->hex_away_track != new_prefs->hex_away_track)
 		reasons |= THEME_CHANGED_REASON_USERLIST;
@@ -578,7 +579,7 @@ theme_manager_get_userlist_palette_behavior (const PangoFontDescription *font_de
 
 	behavior.font_desc = font_desc;
 	behavior.apply_background = TRUE;
-	behavior.apply_foreground = TRUE;
+	behavior.apply_foreground = (prefs.hex_gui_ulist_color || prefs.hex_text_color_nicks) ? FALSE : TRUE;
 
 	return behavior;
 }

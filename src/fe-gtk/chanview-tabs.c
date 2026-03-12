@@ -75,20 +75,6 @@ cv_tabs_get_viewport_size (GdkWindow *parent_win, gboolean vertical)
 	return viewport_size;
 }
 
-/*
- * GtkViewports request at least as much space as their children do.
- * If we don't intervene here, the GtkViewport will be granted its
- * request, even at the expense of resizing the top-level window.
- */
-static void
-cv_tabs_sizerequest (GtkWidget *viewport, GtkRequisition *requisition, chanview *cv)
-{
-	if (!cv->vertical)
-		requisition->width = 1;
-	else
-		requisition->height = 1;
-}
-
 static void
 cv_tabs_sizealloc (GtkWidget *widget, GtkAllocation *allocation, chanview *cv)
 {
@@ -415,8 +401,10 @@ cv_tabs_init (chanview *cv)
 
 	viewport = gtk_viewport_new (0, 0);
 	gtk_viewport_set_shadow_type (GTK_VIEWPORT (viewport), GTK_SHADOW_NONE);
-	g_signal_connect (G_OBJECT (viewport), "size_request",
-							G_CALLBACK (cv_tabs_sizerequest), cv);
+	if (cv->vertical)
+		gtk_widget_set_size_request (viewport, -1, 1);
+	else
+		gtk_widget_set_size_request (viewport, 1, -1);
 	g_signal_connect (G_OBJECT (viewport), "scroll_event",
 							G_CALLBACK (tab_scroll_cb), cv);
 	gtk_box_pack_start (GTK_BOX (outer), viewport, 1, 1, 0);
