@@ -1134,6 +1134,7 @@ tray_menu_clear (GtkWidget *menu)
 	g_list_free (children);
 	tray_toggle_item = NULL;
 }
+#endif
 
 static void
 tray_update_toggle_item_label (void)
@@ -1161,8 +1162,6 @@ tray_menu_show_cb (GtkWidget *menu, gpointer userdata)
 	tray_menu_clear (menu);
 	tray_menu_populate (menu);
 }
-#endif
-
 #endif
 
 static gboolean
