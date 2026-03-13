@@ -36,7 +36,7 @@ jobs:
 
       - name: Upload Flatpak Bundle
         id: upload_flatpak
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: zoitechat.flatpak
           path: zoitechat.flatpak
