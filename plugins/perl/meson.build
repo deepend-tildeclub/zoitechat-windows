@@ -45,6 +45,22 @@ endif
 perl_ldflags = []
 perl_rpath = ''
 foreach flag : ret.stdout().strip().split(' ')
+  if flag.startswith('/') and '/libperl.' in flag
+    split = flag.split('/')
+    libperl_dir = ''
+    foreach part : split
+      if part != '' and not part.startswith('libperl.')
+        if libperl_dir == ''
+          libperl_dir = '/' + part
+        else
+          libperl_dir += '/' + part
+        endif
+      endif
+    endforeach
+    perl_ldflags += '-L' + libperl_dir
+    perl_ldflags += '-lperl'
+    continue
+  endif
   if flag.startswith('-L') or flag.startswith('-l')
     perl_ldflags += flag
   endif

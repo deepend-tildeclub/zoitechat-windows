@@ -2184,12 +2184,13 @@ mg_topic_key_press_cb (GtkWidget *entry, GdkEventKey *event, gpointer userdata)
 }
 
 static char *
-mg_topic_get_word_at_pos (GtkWidget *entry, gdouble event_x, gdouble event_y)
+mg_topic_get_word_at_pos (GtkWidget *entry, gdouble event_x, gdouble event_y, int *word_pos)
 {
         GtkTextBuffer *buffer;
         GtkTextIter iter;
         GtkTextIter start;
         GtkTextIter end;
+        GtkTextIter cursor;
         int x;
         int y;
 
@@ -2199,6 +2200,7 @@ mg_topic_get_word_at_pos (GtkWidget *entry, gdouble event_x, gdouble event_y)
                                                x, y, &x, &y);
         gtk_text_view_get_iter_at_location (GTK_TEXT_VIEW (entry), &iter, x, y);
 
+        cursor = iter;
         start = iter;
         while (!gtk_text_iter_starts_line (&start))
         {
@@ -2226,6 +2228,16 @@ mg_topic_get_word_at_pos (GtkWidget *entry, gdouble event_x, gdouble event_y)
         if (gtk_text_iter_equal (&start, &end))
                 return NULL;
 
+        if (word_pos)
+        {
+                char *prefix;
+
+                buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (entry));
+                prefix = gtk_text_buffer_get_text (buffer, &start, &cursor, FALSE);
+                *word_pos = (int)strlen (prefix);
+                g_free (prefix);
+        }
+
         buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (entry));
         return gtk_text_buffer_get_text (buffer, &start, &end, FALSE);
 }
@@ -2248,25 +2260,34 @@ mg_topic_set_cursor (GtkWidget *entry, GdkCursorType cursor_type)
 }
 
 static gboolean
-mg_topic_word_is_clickable (const char *word)
+mg_topic_word_is_clickable (const char *word, int word_pos)
 {
+        int start;
+        int end;
+
         if (!word || word[0] == 0)
                 return FALSE;
 
         if (strcmp (word, "/") == 0)
                 return FALSE;
 
-        return url_check_word (word) != 0;
+        if (url_check_word (word) == 0)
+                return FALSE;
+
+        url_last (&start, &end);
+        return word_pos >= start && word_pos < end;
 }
 
 static gboolean
 mg_topic_motion_cb (GtkWidget *entry, GdkEventMotion *event, gpointer userdata)
 {
         char *word;
+        int word_pos;
         gboolean word_is_clickable;
 
-        word = mg_topic_get_word_at_pos (entry, event->x, event->y);
-        word_is_clickable = mg_topic_word_is_clickable (word);
+        word_pos = 0;
+        word = mg_topic_get_word_at_pos (entry, event->x, event->y, &word_pos);
+        word_is_clickable = mg_topic_word_is_clickable (word, word_pos);
         if (word_is_clickable)
                 mg_topic_set_cursor (entry, GDK_HAND2);
         else
@@ -2287,17 +2308,19 @@ static gboolean
 mg_topic_button_release_cb (GtkWidget *entry, GdkEventButton *event, gpointer userdata)
 {
         char *word;
+        int word_pos;
         int start;
         int end;
 
         if (event->button != 1)
                 return FALSE;
 
-        word = mg_topic_get_word_at_pos (entry, event->x, event->y);
+        word_pos = 0;
+        word = mg_topic_get_word_at_pos (entry, event->x, event->y, &word_pos);
         if (!word)
                 return FALSE;
 
-        if (mg_topic_word_is_clickable (word))
+        if (mg_topic_word_is_clickable (word, word_pos))
         {
                 url_last (&start, &end);
                 word[end] = 0;
