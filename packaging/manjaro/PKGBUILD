@@ -12,6 +12,7 @@ depends=(
   'glib2'
   'gtk3'
   'iso-codes'
+  'libayatana-appindicator'
   'libcanberra'
   'lua'
   'openssl'
@@ -26,7 +27,6 @@ makedepends=(
   'python'
 )
 optdepends=(
-  'libayatana-appindicator: Ayatana/AppIndicator tray backend'
   'pciutils: sysinfo plugin hardware detection details'
 )
 provides=('zoitechat')
