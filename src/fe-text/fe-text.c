@@ -896,6 +896,7 @@ void fe_get_file (const char *title, char *initial,
 				 int flags)
 {
 }
+void fe_notify (fenotify kind){}
 void fe_tray_set_flash (const char *filename1, const char *filename2, int timeout){}
 void fe_tray_set_file (const char *filename){}
 void fe_tray_set_icon (feicon icon){}

@@ -186,6 +186,14 @@ typedef enum
 	FE_ICON_PRIVMSG = 8,
 	FE_ICON_FILEOFFER = 11
 } feicon;
+typedef enum
+{
+	FE_NOTIFY_MESSAGE,
+	FE_NOTIFY_HIGHLIGHT,
+	FE_NOTIFY_PRIVATE,
+	FE_NOTIFY_FILEOFFER
+} fenotify;
+void fe_notify (fenotify kind);
 void fe_tray_set_icon (feicon icon);
 void fe_tray_set_tooltip (const char *text);
 void fe_open_chan_list (server *serv, char *filter, int do_refresh);

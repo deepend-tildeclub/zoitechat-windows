@@ -1,0 +1,99 @@
+# Win32 frontend API checklist
+
+## Enums
+- [x] `tabcolor` -> `src/common/fe.h` declarations, runtime no-op in `src/fe-win32/fe-win32.c` via `fe_set_tab_color`, guarded in `src/fe-win32/fe-win32-completeness.c`. Tag: Deferred. Expectation: values are accepted but do not change UI state.
+- [x] `fe_gui_action` -> consumed by `src/fe-win32/fe-win32.c::fe_ctrl_gui`, guarded in `src/fe-win32/fe-win32-completeness.c`. Tag: MVP. Expectation: only `FE_GUI_FOCUS` mutates active session; all other actions are ignored.
+- [x] `feicon` -> consumed by `src/fe-win32/fe-win32.c::fe_tray_set_icon`, guarded in `src/fe-win32/fe-win32-completeness.c`. Tag: Deferred. Expectation: icon requests are ignored.
+
+## Functions
+- [x] `fe_args` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: parses CLI options, handles version/config path output, returns `-1` to continue or process-exit status.
+- [x] `fe_init` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: disables unsupported GUI prefs for console frontend.
+- [x] `fe_main` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: runs glib main loop and stdin watcher.
+- [x] `fe_cleanup` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: no-op cleanup.
+- [x] `fe_exit` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: sets done flag and quits main loop.
+- [x] `fe_timeout_add` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: forwards to `g_timeout_add`.
+- [x] `fe_timeout_add_seconds` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: forwards to `g_timeout_add_seconds`.
+- [x] `fe_timeout_remove` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: removes glib source by tag.
+- [x] `fe_new_window` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: sets current/front session pointers and prints one intro banner.
+- [x] `fe_new_server` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_add_rawlog` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_message` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: prints message to stdout with newline.
+- [x] `fe_input_add` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: installs glib fd/socket watch based on flags.
+- [x] `fe_input_remove` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: removes glib source by tag.
+- [x] `fe_idle_add` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: schedules idle callback via glib.
+- [x] `fe_set_topic` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_tab_color` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_flash_window` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_update_mode_buttons` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_update_channel_key` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_update_channel_limit` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_is_chanwindow` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `0`.
+- [x] `fe_add_chan_list` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_chan_list_end` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_add_ban_list` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `FALSE`.
+- [x] `fe_ban_list_end` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `FALSE`.
+- [x] `fe_notify_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_notify_ask` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_text_clear` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_close_window` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: frees session and sets done flag.
+- [x] `fe_progressbar_start` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_progressbar_end` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_print_text` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: tab-to-space normalize, ensure trailing newline, write to stdout.
+- [x] `fe_userlist_insert` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_userlist_remove` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `0`.
+- [x] `fe_userlist_rehash` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_userlist_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_userlist_numbers` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_userlist_clear` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_userlist_set_selected` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_uselect` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_dcc_add` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_dcc_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_dcc_remove` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_dcc_open_recv_win` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `FALSE`.
+- [x] `fe_dcc_open_send_win` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `FALSE`.
+- [x] `fe_dcc_open_chat_win` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `FALSE`.
+- [x] `fe_clear_channel` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_session_callback` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_server_callback` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_url_add` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_pluginlist_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_buttons_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_dlgbuttons_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_dcc_send_filereq` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_channel` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_title` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_nonchannel` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_nick` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_ignore_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_beep` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: emits ASCII bell.
+- [x] `fe_lastlog` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_lag` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_throttle` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_away` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_serverlist_open` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_get_bool` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_get_str` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_get_int` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_get_file` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_ctrl_gui` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: only focus action updates active/front session pointers.
+- [x] `fe_gui_info` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `-1`.
+- [x] `fe_gui_info_ptr` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `NULL`.
+- [x] `fe_confirm` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_get_inputbox_contents` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `NULL`.
+- [x] `fe_get_inputbox_cursor` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `0`.
+- [x] `fe_set_inputbox_contents` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_set_inputbox_cursor` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_open_url` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_menu_del` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_menu_add` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `NULL`.
+- [x] `fe_menu_update` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_server_event` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_tray_set_flash` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_tray_set_file` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_tray_set_icon` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_tray_set_tooltip` -> `src/fe-win32/fe-win32.c`. Tag: Deferred. Expectation: no-op.
+- [x] `fe_open_chan_list` -> `src/fe-win32/fe-win32.c`. Tag: MVP. Expectation: delegates to `serv->p_list_channels(serv, filter, 1)` and ignores `do_refresh`.
+- [x] `fe_get_default_font` -> `src/fe-win32/fe-win32.c`. Tag: Phase2. Expectation: always returns `NULL`.
+
+All symbols are also referenced from `src/fe-win32/fe-win32-completeness.c` to make missing definitions fail the frontend build.

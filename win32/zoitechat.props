@@ -4,7 +4,7 @@
 
 		<!-- SPECIFY YOUR DEPENDENCY DIRECTORIES HERE -->
 
-		<YourDepsPath>c:\gtk-build\gtk</YourDepsPath>
+		<YourDepsPath>c:\zoitechat-deps</YourDepsPath>
 		<YourGendefPath>c:\gtk-build\gendef</YourGendefPath>
 		<YourPerlPath>c:\gtk-build\perl-5.42.0.1</YourPerlPath>
 		<YourPython3Path>c:\gtk-build\python-3.14</YourPython3Path>
@@ -66,10 +66,6 @@
 
 		<Glib>$(DepsRoot)\include\glib-2.0;$(DepsRoot)\lib\glib-2.0\include;$(DepsRoot)\include\libxml2</Glib>
 
-		<UsingGtk3 Condition="Exists('$(DepsRoot)\\include\\gtk-3.0\\gtk\\gtk.h')">true</UsingGtk3>
-		<Gtk3>$(DepsRoot)\include\gtk-3.0;$(DepsRoot)\lib\gtk-3.0\include</Gtk3>
-		<GtkCommon>$(DepsRoot)\include\atk-1.0;$(DepsRoot)\include\cairo;$(DepsRoot)\include\pango-1.0;$(DepsRoot)\include\gdk-pixbuf-2.0;$(DepsRoot)\include\harfbuzz</GtkCommon>
-		<Gtk>$(Gtk3);$(GtkCommon)</Gtk>
 
 		<SslLegacyLib Condition="Exists('$(DepsRoot)\\lib\\ssleay32.lib')">ssleay32.lib</SslLegacyLib>
 		<CryptoLegacyLib Condition="Exists('$(DepsRoot)\\lib\\libeay32.lib')">libeay32.lib</CryptoLegacyLib>
@@ -81,15 +77,6 @@
 		<OpenSslInclude Condition="Exists('$(DepsRoot)\\include\\openssl\\ssl.h')">$(DepsRoot)\include</OpenSslInclude>
 
 		<!-- Resolve library names across dependency bundles -->
-		<Gtk3Lib Condition="Exists('$(DepsRoot)\lib\gtk-3.lib')">gtk-3.lib</Gtk3Lib>
-		<Gtk3Lib Condition="'$(Gtk3Lib)'=='' and Exists('$(DepsRoot)\lib\gtk-3.0.lib')">gtk-3.0.lib</Gtk3Lib>
-		<Gtk3Lib Condition="'$(Gtk3Lib)'=='' and Exists('$(DepsRoot)\lib\libgtk-3.lib')">libgtk-3.lib</Gtk3Lib>
-		<Gtk3Lib Condition="'$(Gtk3Lib)'=='' and Exists('$(DepsRoot)\lib\libgtk-3.0.lib')">libgtk-3.0.lib</Gtk3Lib>
-
-		<Gdk3Lib Condition="Exists('$(DepsRoot)\lib\gdk-3.lib')">gdk-3.lib</Gdk3Lib>
-		<Gdk3Lib Condition="'$(Gdk3Lib)'=='' and Exists('$(DepsRoot)\lib\gdk-3.0.lib')">gdk-3.0.lib</Gdk3Lib>
-		<Gdk3Lib Condition="'$(Gdk3Lib)'=='' and Exists('$(DepsRoot)\lib\libgdk-3.lib')">libgdk-3.lib</Gdk3Lib>
-		<Gdk3Lib Condition="'$(Gdk3Lib)'=='' and Exists('$(DepsRoot)\lib\libgdk-3.0.lib')">libgdk-3.0.lib</Gdk3Lib>
 
 		<IntlLib Condition="Exists('$(DepsRoot)\lib\intl.lib')">intl.lib</IntlLib>
 		<IntlLib Condition="'$(IntlLib)'=='' and Exists('$(DepsRoot)\lib\libintl.lib')">libintl.lib</IntlLib>
@@ -128,7 +115,7 @@
 
 		<ArchiveDefs Condition="'$(ArchiveLib)'=='archive_static.lib' or '$(ArchiveLib)'=='libarchive_static.lib'">LIBARCHIVE_STATIC</ArchiveDefs>
 
-		<DepLibs>$(Gtk3Lib);$(Gdk3Lib);wininet.lib;winmm.lib;ws2_32.lib;atk-1.0.lib;gio-2.0.lib;gdk_pixbuf-2.0.lib;pangowin32-1.0.lib;pangocairo-1.0.lib;pango-1.0.lib;cairo.lib;gobject-2.0.lib;gmodule-2.0.lib;glib-2.0.lib;$(IntlLib);$(IconvLib);$(ZlibLib);$(Xml2Lib);$(JpegLib);$(PngLib);$(ArchiveLib);$(OpenSslLibs)</DepLibs>
+		<DepLibs>comctl32.lib;d2d1.lib;dwrite.lib;dwmapi.lib;ole32.lib;shell32.lib;uxtheme.lib;user32.lib;wininet.lib;winmm.lib;ws2_32.lib;$(ArchiveLib);$(OpenSslLibs)</DepLibs>
 
 		<DataDir>$(SolutionDir)..\data\\</DataDir>
 		<ZoiteChatBuild>$(SolutionDir)..\..\zoitechat-build</ZoiteChatBuild>
@@ -148,6 +135,11 @@
 	</PropertyGroup>
 	<Target Name="ZoiteChatPropsEnforceX64" BeforeTargets="PrepareForBuild" Condition="'$(_ZoiteChatPlatformMismatch)'=='true'">
 		<Error Text="zoitechat.props is configured for x64 only. Set the Solution/Project Platform to x64." />
+	</Target>
+
+
+	<Target Name="ZoiteChatPropsBlockGtkArtifacts" BeforeTargets="PrepareForBuild" Condition="Exists('$(DepsRoot)\include\gtk-3.0') or Exists('$(DepsRoot)\lib\gtk-3.lib') or Exists('$(DepsRoot)\lib\gtk-3.0.lib') or Exists('$(DepsRoot)\lib\gdk-3.lib') or Exists('$(DepsRoot)\lib\gdk-3.0.lib')">
+		<Error Text="Deprecated GTK artifacts detected under $(DepsRoot). Remove GTK3/GDK3 bundles before building." />
 	</Target>
 
 	<PropertyGroup>
