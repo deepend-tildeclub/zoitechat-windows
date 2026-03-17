@@ -87,6 +87,7 @@ static fe_any_fn const fe_required_symbols[] = {
 	(fe_any_fn) fe_menu_add,
 	(fe_any_fn) fe_menu_update,
 	(fe_any_fn) fe_server_event,
+	(fe_any_fn) fe_notify,
 	(fe_any_fn) fe_tray_set_flash,
 	(fe_any_fn) fe_tray_set_file,
 	(fe_any_fn) fe_tray_set_icon,

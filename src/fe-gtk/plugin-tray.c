@@ -806,6 +806,26 @@ fe_tray_set_flash (const char *filename1, const char *filename2, int tout)
 }
 
 void
+fe_notify (fenotify kind)
+{
+	switch (kind)
+	{
+	case FE_NOTIFY_MESSAGE:
+		fe_tray_set_icon (FE_ICON_MESSAGE);
+		break;
+	case FE_NOTIFY_HIGHLIGHT:
+		fe_tray_set_icon (FE_ICON_HIGHLIGHT);
+		break;
+	case FE_NOTIFY_PRIVATE:
+		fe_tray_set_icon (FE_ICON_PRIVMSG);
+		break;
+	case FE_NOTIFY_FILEOFFER:
+		fe_tray_set_icon (FE_ICON_FILEOFFER);
+		break;
+	}
+}
+
+void
 fe_tray_set_icon (feicon icon)
 {
 	tray_apply_setup ();

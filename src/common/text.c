@@ -2095,7 +2095,7 @@ text_emit (int index, session *sess, char *a, char *b, char *c, char *d,
 			fe_flash_window (sess);
 		/* why is this one different? because of plugin-tray.c's hooks! ugly */
 		if (sess->alert_tray == SET_ON)
-			fe_tray_set_icon (FE_ICON_MESSAGE);
+			fe_notify (FE_NOTIFY_PRIVATE);
 		break;
 
 	/* ===Highlighted message=== */
@@ -2106,7 +2106,7 @@ text_emit (int index, session *sess, char *a, char *b, char *c, char *d,
 		if (chanopt_is_set (prefs.hex_input_flash_hilight, sess->alert_taskbar) && (!prefs.hex_away_omit_alerts || !sess->server->is_away))
 			fe_flash_window (sess);
 		if (sess->alert_tray == SET_ON)
-			fe_tray_set_icon (FE_ICON_MESSAGE);
+			fe_notify (FE_NOTIFY_HIGHLIGHT);
 		break;
 
 	/* ===Channel message=== */
@@ -2117,7 +2117,12 @@ text_emit (int index, session *sess, char *a, char *b, char *c, char *d,
 		if (chanopt_is_set (prefs.hex_input_flash_chans, sess->alert_taskbar) && (!prefs.hex_away_omit_alerts || !sess->server->is_away))
 			fe_flash_window (sess);
 		if (sess->alert_tray == SET_ON)
-			fe_tray_set_icon (FE_ICON_MESSAGE);
+			fe_notify (FE_NOTIFY_MESSAGE);
+		break;
+
+	case XP_TE_DCCOFFER:
+		if (sess->alert_tray == SET_ON)
+			fe_notify (FE_NOTIFY_FILEOFFER);
 		break;
 
 	/* ===Nick change message=== */

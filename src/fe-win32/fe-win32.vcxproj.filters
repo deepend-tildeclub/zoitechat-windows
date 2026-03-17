@@ -3,5 +3,9 @@
   <ItemGroup>
     <ClCompile Include="fe-win32-completeness.c" />
     <ClCompile Include="fe-win32.c" />
+    <ClCompile Include="notification-win32.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="notification-win32.h" />
   </ItemGroup>
 </Project>

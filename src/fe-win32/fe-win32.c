@@ -22,6 +22,7 @@
 #include "../common/outbound.h"
 #include "../common/util.h"
 #include "../common/fe.h"
+#include "notification-win32.h"
 
 static int done;
 static GMainLoop *main_loop;
@@ -176,6 +177,7 @@ void fe_init (void)
 
 void fe_main (void)
 {
+	fe_win32_notification_init ();
 	GIOChannel *keyboard_input;
 	main_loop = g_main_loop_new (NULL, FALSE);
 #ifdef G_OS_WIN32
@@ -274,10 +276,11 @@ void fe_menu_del (menu_entry *me) {}
 char *fe_menu_add (menu_entry *me) { return NULL; }
 void fe_menu_update (menu_entry *me) {}
 void fe_server_event (server *serv, int type, int arg) {}
+void fe_notify (fenotify kind) { fe_win32_notification_show (kind); }
 void fe_tray_set_flash (const char *filename1, const char *filename2, int timeout) {}
 void fe_tray_set_file (const char *filename) {}
-void fe_tray_set_icon (feicon icon) {}
-void fe_tray_set_tooltip (const char *text) {}
+void fe_tray_set_icon (feicon icon) { fe_win32_notification_set_icon (icon); }
+void fe_tray_set_tooltip (const char *text) { fe_win32_notification_set_tooltip (text); }
 void fe_open_chan_list (server *serv, char *filter, int do_refresh) { serv->p_list_channels (serv, filter, 1); }
 const char *fe_get_default_font (void) { return NULL; }
-void fe_cleanup (void) {}
+void fe_cleanup (void) { fe_win32_notification_cleanup (); }
