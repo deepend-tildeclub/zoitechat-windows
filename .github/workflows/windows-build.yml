@@ -145,6 +145,50 @@ jobs:
           msbuild win32\zoitechat.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=${{ matrix.platform }}
         shell: cmd
 
+      - name: Validate Installer Package
+        shell: pwsh
+        run: |
+          $issPath = 'win32/installer/zoitechat.iss.tt'
+          $roots = @("..\zoitechat-build\${{ matrix.platform }}\rel", "..\zoitechat-build\${{ matrix.platform }}\bin")
+          $roots = $roots | ForEach-Object { (Resolve-Path $_).Path }
+          $sourceEntries = @()
+          $inFilesSection = $false
+          foreach ($line in Get-Content -Path $issPath) {
+            if ($line -match '^\s*\[') {
+              $inFilesSection = $line -match '^\s*\[Files\]\s*$'
+              continue
+            }
+            if (-not $inFilesSection) { continue }
+            if ($line -match '^\s*Source:\s*"([^"]+)"') {
+              $sourceEntries += $matches[1]
+            }
+          }
+          $missing = New-Object System.Collections.Generic.List[string]
+          $packagedNames = New-Object System.Collections.Generic.List[string]
+          foreach ($entry in $sourceEntries) {
+            $found = @()
+            foreach ($root in $roots) {
+              $pattern = Join-Path $root $entry
+              $matches = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
+              if ($matches) { $found += $matches }
+            }
+            if (-not $found) {
+              $missing.Add($entry)
+              continue
+            }
+            foreach ($item in $found) {
+              $packagedNames.Add($item.Name)
+            }
+          }
+          if ($missing.Count -gt 0) {
+            $missing | Sort-Object -Unique | ForEach-Object { Write-Error "Missing packaged source: $_" }
+            throw 'Installer source validation failed.'
+          }
+          $blocked = $packagedNames | Sort-Object -Unique | Where-Object { $_ -match '(?i)(gtk|gdk|pango|cairo)' }
+          if ($blocked) {
+            $blocked | ForEach-Object { Write-Error "Blocked GTK runtime artifact: $_" }
+            throw 'Installer includes blocked GTK runtime artifacts.'
+          }
       - name: Preparing Artifacts
         run: |
           move ..\zoitechat-build\${{ matrix.platform }}\ZoiteChat-*.exe .\
