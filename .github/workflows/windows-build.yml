@@ -32,6 +32,28 @@ jobs:
           python-version: '3.14.3'
           architecture: ${{ matrix.arch }}
 
+      - name: Fail Fast on Deprecated GTK Artifacts
+        shell: pwsh
+        run: |
+          $patterns = @(
+            'GTK3_Gvsbuild',
+            'gtk-3\.lib',
+            'gdk-3\.lib',
+            'include\\gtk-3\.0',
+            'C:\\gtk-build\\gtk'
+          )
+          $files = @(
+            '.github/workflows/windows-build.yml',
+            'win32/zoitechat.props'
+          )
+          foreach ($file in $files) {
+            foreach ($pattern in $patterns) {
+              if (Select-String -Path $file -Pattern $pattern -Quiet) {
+                throw "Deprecated GTK artifact reference '$pattern' found in $file"
+              }
+            }
+          }
+
       - name: Install Dependencies
         run: |
           New-Item -Name "deps" -ItemType "Directory" -Force | Out-Null
@@ -65,33 +87,24 @@ jobs:
           Download-WithRetry -Url https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe -OutFile deps\innosetup-unicode.exe
           & deps\innosetup-unicode.exe /VERYSILENT | Out-Null
 
-          Download-WithRetry -Url https://github.com/ZoiteChat/gvsbuild/releases/download/zoitechat-2.18.0-pre1/GTK3_Gvsbuild_zoitechat-2.18.0-pre1_${{ matrix.platform }}.7z -OutFile deps\gtk-${{ matrix.arch }}.7z
-          & 7z.exe x deps\gtk-${{ matrix.arch }}.7z -oC:\gtk-build\gtk\x64\release
-
-          Download-WithRetry -Url https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-hicolor-icon-theme-0.18-1-any.pkg.tar.zst -OutFile deps\hicolor-icon-theme.pkg.tar.zst
-          python -c "import tarfile,zstandard,pathlib;archive=pathlib.Path(r'deps\\hicolor-icon-theme.pkg.tar.zst');target=pathlib.Path(r'C:\\gtk-build\\gtk\\x64\\release');dctx=zstandard.ZstdDecompressor();f=archive.open('rb');reader=dctx.stream_reader(f);tf=tarfile.open(fileobj=reader,mode='r|');[tf.extract(m,path=target) for m in tf if m.name.startswith('mingw64/share/icons/hicolor/')];tf.close();reader.close();f.close()"
+          New-Item -Path C:\zoitechat-deps\x64\release\include -ItemType Directory -Force | Out-Null
+          New-Item -Path C:\zoitechat-deps\x64\release\lib -ItemType Directory -Force | Out-Null
+          New-Item -Path C:\zoitechat-deps\x64\release\bin -ItemType Directory -Force | Out-Null
 
           Download-WithRetry -Url https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-libarchive-3.8.6-1-any.pkg.tar.zst -OutFile deps\libarchive.pkg.tar.zst
-          python -c "import tarfile,zstandard,pathlib;archive=pathlib.Path(r'deps\\libarchive.pkg.tar.zst');target=pathlib.Path(r'C:\\gtk-build\\gtk\\x64\\release');dctx=zstandard.ZstdDecompressor();f=archive.open('rb');reader=dctx.stream_reader(f);tf=tarfile.open(fileobj=reader,mode='r|');[tf.extract(m,path=target) for m in tf if m.name.startswith(('mingw64/include/archive','mingw64/lib/libarchive','mingw64/bin/libarchive'))];tf.close();reader.close();f.close()"
+          python -c "import tarfile,zstandard,pathlib;archive=pathlib.Path(r'deps\\libarchive.pkg.tar.zst');target=pathlib.Path(r'C:\\zoitechat-deps\\x64\\release');dctx=zstandard.ZstdDecompressor();f=archive.open('rb');reader=dctx.stream_reader(f);tf=tarfile.open(fileobj=reader,mode='r|');[tf.extract(m,path=target) for m in tf if m.name.startswith(('mingw64/include/archive','mingw64/lib/libarchive','mingw64/bin/libarchive'))];tf.close();reader.close();f.close()"
 
-          if (Test-Path C:\gtk-build\gtk\x64\release\mingw64\share\icons\hicolor) {
-            New-Item -Path C:\gtk-build\gtk\x64\release\share\icons -ItemType Directory -Force | Out-Null
-            Copy-Item -Path C:\gtk-build\gtk\x64\release\mingw64\share\icons\hicolor -Destination C:\gtk-build\gtk\x64\release\share\icons\hicolor -Recurse -Force
+          if (Test-Path C:\zoitechat-deps\x64\release\mingw64\include) {
+            Copy-Item -Path C:\zoitechat-deps\x64\release\mingw64\include\archive* -Destination C:\zoitechat-deps\x64\release\include -Recurse -Force
           }
-          if (Test-Path C:\gtk-build\gtk\x64\release\mingw64\include) {
-            New-Item -Path C:\gtk-build\gtk\x64\release\include -ItemType Directory -Force | Out-Null
-            Copy-Item -Path C:\gtk-build\gtk\x64\release\mingw64\include\archive* -Destination C:\gtk-build\gtk\x64\release\include -Recurse -Force
+          if (Test-Path C:\zoitechat-deps\x64\release\mingw64\lib) {
+            Copy-Item -Path C:\zoitechat-deps\x64\release\mingw64\lib\libarchive* -Destination C:\zoitechat-deps\x64\release\lib -Force
           }
-          if (Test-Path C:\gtk-build\gtk\x64\release\mingw64\lib) {
-            New-Item -Path C:\gtk-build\gtk\x64\release\lib -ItemType Directory -Force | Out-Null
-            Copy-Item -Path C:\gtk-build\gtk\x64\release\mingw64\lib\libarchive* -Destination C:\gtk-build\gtk\x64\release\lib -Force
+          if (Test-Path C:\zoitechat-deps\x64\release\mingw64\bin) {
+            Copy-Item -Path C:\zoitechat-deps\x64\release\mingw64\bin\libarchive*.dll -Destination C:\zoitechat-deps\x64\release\bin -Force
           }
-          if (Test-Path C:\gtk-build\gtk\x64\release\mingw64\bin) {
-            New-Item -Path C:\gtk-build\gtk\x64\release\bin -ItemType Directory -Force | Out-Null
-            Copy-Item -Path C:\gtk-build\gtk\x64\release\mingw64\bin\libarchive*.dll -Destination C:\gtk-build\gtk\x64\release\bin -Force
-          }
-          if (Test-Path C:\gtk-build\gtk\x64\release\mingw64) {
-            Remove-Item -Path C:\gtk-build\gtk\x64\release\mingw64 -Recurse -Force
+          if (Test-Path C:\zoitechat-deps\x64\release\mingw64) {
+            Remove-Item -Path C:\zoitechat-deps\x64\release\mingw64 -Recurse -Force
           }
 
           Download-WithRetry -Url https://github.com/ZoiteChat/gvsbuild/releases/download/zoitechat-2.18.0-pre4/gendef20260315.7z -OutFile deps\gendef.7z
@@ -127,7 +140,7 @@ jobs:
           set "LIB=%PYTHON_DIR%\libs;%LIB%"
           set "INCLUDE=%PYTHON_DIR%\include;%INCLUDE%"
 
-          powershell -NoProfile -ExecutionPolicy Bypass -Command "$archiveLib='C:\gtk-build\gtk\x64\release\lib\libarchive.lib'; if (-not (Test-Path $archiveLib)) { $archiveDll = Get-ChildItem 'C:\gtk-build\gtk\x64\release\bin\libarchive*.dll' | Select-Object -First 1; if ($archiveDll) { Push-Location 'C:\gtk-build\gtk\x64\release\lib'; & 'C:\gtk-build\gendef\gendef.exe' $archiveDll.FullName | Out-Null; $archiveDef = Get-ChildItem 'libarchive*.def' | Select-Object -First 1; if ($archiveDef) { & lib /def:$archiveDef.Name /machine:${{ matrix.platform }} /out:libarchive.lib | Out-Null }; Pop-Location } }"
+          powershell -NoProfile -ExecutionPolicy Bypass -Command "$archiveLib='C:\zoitechat-deps\x64\release\lib\libarchive.lib'; if (-not (Test-Path $archiveLib)) { $archiveDll = Get-ChildItem 'C:\zoitechat-deps\x64\release\bin\libarchive*.dll' | Select-Object -First 1; if ($archiveDll) { Push-Location 'C:\zoitechat-deps\x64\release\lib'; & 'C:\gtk-build\gendef\gendef.exe' $archiveDll.FullName | Out-Null; $archiveDef = Get-ChildItem 'libarchive*.def' | Select-Object -First 1; if ($archiveDef) { & lib /def:$archiveDef.Name /machine:${{ matrix.platform }} /out:libarchive.lib | Out-Null }; Pop-Location } }"
 
           msbuild win32\zoitechat.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=${{ matrix.platform }}
         shell: cmd
